@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "13f6cb2705fff3f29781aacadc59513b",
+    "content-hash": "a7ab3225ace131312f1f2b31baff654b",
     "packages": [
         {
             "name": "aws/aws-crt-php",
@@ -62,16 +62,16 @@
         },
         {
             "name": "aws/aws-sdk-php",
-            "version": "3.383.0",
+            "version": "3.383.1",
             "source": {
                 "type": "git",
                 "url": "https://github.com/aws/aws-sdk-php.git",
-                "reference": "50be4b674a9969c0e0aba765dee534cb5e61d309"
+                "reference": "56b7ff3ff9e086eb3945bf31e75c97cde5ab531a"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/aws/aws-sdk-php/zipball/50be4b674a9969c0e0aba765dee534cb5e61d309",
-                "reference": "50be4b674a9969c0e0aba765dee534cb5e61d309",
+                "url": "https://api.github.com/repos/aws/aws-sdk-php/zipball/56b7ff3ff9e086eb3945bf31e75c97cde5ab531a",
+                "reference": "56b7ff3ff9e086eb3945bf31e75c97cde5ab531a",
                 "shasum": ""
             },
             "require": {
@@ -153,9 +153,9 @@
             "support": {
                 "forum": "https://github.com/aws/aws-sdk-php/discussions",
                 "issues": "https://github.com/aws/aws-sdk-php/issues",
-                "source": "https://github.com/aws/aws-sdk-php/tree/3.383.0"
+                "source": "https://github.com/aws/aws-sdk-php/tree/3.383.1"
             },
-            "time": "2026-05-28T18:17:51+00:00"
+            "time": "2026-05-29T18:13:12+00:00"
         },
         {
             "name": "brick/math",
@@ -1004,16 +1004,16 @@
         },
         {
             "name": "guzzlehttp/psr7",
-            "version": "2.10.3",
+            "version": "2.10.4",
             "source": {
                 "type": "git",
                 "url": "https://github.com/guzzle/psr7.git",
-                "reference": "7c1472269227dc6f18930bd903d7a88fe6c52130"
+                "reference": "d2a1a094e396da8957e797489fddaf860c340cfc"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/guzzle/psr7/zipball/7c1472269227dc6f18930bd903d7a88fe6c52130",
-                "reference": "7c1472269227dc6f18930bd903d7a88fe6c52130",
+                "url": "https://api.github.com/repos/guzzle/psr7/zipball/d2a1a094e396da8957e797489fddaf860c340cfc",
+                "reference": "d2a1a094e396da8957e797489fddaf860c340cfc",
                 "shasum": ""
             },
             "require": {
@@ -1101,7 +1101,7 @@
             ],
             "support": {
                 "issues": "https://github.com/guzzle/psr7/issues",
-                "source": "https://github.com/guzzle/psr7/tree/2.10.3"
+                "source": "https://github.com/guzzle/psr7/tree/2.10.4"
             },
             "funding": [
                 {
@@ -1117,7 +1117,7 @@
                     "type": "tidelift"
                 }
             ],
-            "time": "2026-05-27T11:48:20+00:00"
+            "time": "2026-05-29T12:59:07+00:00"
         },
         {
             "name": "guzzlehttp/uri-template",
@@ -6256,16 +6256,16 @@
         },
         {
             "name": "twdnhfr/laravel-deepagents",
-            "version": "v0.1.0",
+            "version": "v0.2.0",
             "source": {
                 "type": "git",
                 "url": "https://github.com/twdnhfr/laravel-deepagents.git",
-                "reference": "75c4419e6af1b16f1eb29b714ff076c4bf6c6314"
+                "reference": "a64cc594daef5335e3a9810298f57882ace67dd2"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/twdnhfr/laravel-deepagents/zipball/75c4419e6af1b16f1eb29b714ff076c4bf6c6314",
-                "reference": "75c4419e6af1b16f1eb29b714ff076c4bf6c6314",
+                "url": "https://api.github.com/repos/twdnhfr/laravel-deepagents/zipball/a64cc594daef5335e3a9810298f57882ace67dd2",
+                "reference": "a64cc594daef5335e3a9810298f57882ace67dd2",
                 "shasum": ""
             },
             "require": {
@@ -6330,7 +6330,7 @@
             ],
             "support": {
                 "issues": "https://github.com/twdnhfr/laravel-deepagents/issues",
-                "source": "https://github.com/twdnhfr/laravel-deepagents/tree/v0.1.0"
+                "source": "https://github.com/twdnhfr/laravel-deepagents/tree/v0.2.0"
             },
             "funding": [
                 {
@@ -6338,7 +6338,7 @@
                     "type": "github"
                 }
             ],
-            "time": "2026-05-29T13:33:29+00:00"
+            "time": "2026-05-30T17:00:41+00:00"
         },
         {
             "name": "vlucas/phpdotenv",

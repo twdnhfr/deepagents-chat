@@ -25,6 +25,8 @@ $buildAgent = fn (): DeepAgent => DeepAgent::make()
     ->tool(new FetchReport)
     ->offloadLargeToolResults(800) // clip big tool outputs; auto-adds read_artifact
     ->withArtifacts()
+    ->validateToolArgs()      // check tool arguments against each tool's schema; bad calls get a correction, not a crash
+    ->guardAgainstLoops()     // stop a no-progress run (same tool call repeated) instead of churning to maxTurns
     ->requireApproval(['delete_records']); // gate only the destructive tool
 
 /** Extract executed tool calls from a slice of run history, for the UI trace. */
@@ -89,6 +91,18 @@ Route::post('/chat', function (Request $request) use ($buildAgent, $trace) {
         ]);
     }
 
+    // No-progress run stopped by guardAgainstLoops(): surface the reason instead
+    // of an empty reply. The halted state is serializable; continue() can resume it.
+    if ($state->isHalted()) {
+        session(['deepagents_chat' => $state->toJson()]);
+
+        return response()->json([
+            'status' => 'halted',
+            'reply' => '🛑 '.$state->haltReason,
+            'tools' => $trace(array_slice($state->history, $turnStart)),
+        ]);
+    }
+
     session(['deepagents_chat' => $state->toJson()]);
 
     return response()->json([
@@ -121,6 +135,14 @@ Route::post('/chat/approve', function (Request $request) use ($buildAgent, $trac
 
     $state = $buildAgent()->resume(RunState::fromJson($pending['state']));
     session(['deepagents_chat' => $state->toJson()]);
+
+    if ($state->isHalted()) {
+        return response()->json([
+            'status' => 'halted',
+            'reply' => '🛑 '.$state->haltReason,
+            'tools' => $trace(array_slice($state->history, $pending['from'])),
+        ]);
+    }
 
     return response()->json([
         'status' => 'done',
