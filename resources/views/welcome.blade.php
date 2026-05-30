@@ -119,9 +119,37 @@
         .msg.markdown blockquote { margin: .5rem 0; padding-left: .7rem; border-left: 3px solid #334155; color: #94a3b8; }
         .msg.markdown table { border-collapse: collapse; margin: .5rem 0; }
         .msg.markdown th, .msg.markdown td { border: 1px solid #334155; padding: .3rem .5rem; }
+
+        /* Chat + presets side by side */
+        .shell { display: flex; gap: 1rem; align-items: flex-start; width: 100%; max-width: 900px; }
+        .card { flex: 1 1 auto; }
+        .presets { flex: 0 0 220px; display: flex; flex-direction: column; gap: .5rem; }
+        .presets-title { font-size: .72rem; font-weight: 600; text-transform: uppercase; letter-spacing: .05em; color: #64748b; padding: .25rem .15rem; }
+        .preset {
+            background: #0f172a;
+            border: 1px solid #1e293b;
+            color: #e2e8f0;
+            border-radius: 10px;
+            padding: .6rem .7rem;
+            font-size: .82rem;
+            font-weight: 500;
+            text-align: left;
+            cursor: pointer;
+            transition: border-color .15s, background .15s;
+        }
+        .preset:hover:not(:disabled) { border-color: #2563eb; background: #131c31; }
+        .preset:disabled { opacity: .5; cursor: not-allowed; }
+
+        @media (max-width: 880px) {
+            .shell { flex-direction: column; align-items: stretch; max-width: 640px; }
+            .presets { flex: none; flex-direction: row; flex-wrap: wrap; }
+            .preset { flex: 1 1 8rem; text-align: center; }
+            .presets-title { width: 100%; }
+        }
     </style>
 </head>
 <body>
+    <div class="shell">
     <div class="card">
         <header>
             <h1>🧠 Deep Agents Chat</h1>
@@ -131,9 +159,18 @@
         <div id="log"><div class="empty">Ask me anything…</div></div>
 
         <form id="chat">
-            <input type="text" id="message" name="message" placeholder="Try: weather in Tokyo?  ·  roll a d20  ·  fetch the report on vector databases  ·  delete records older than 30 days" autocomplete="off" autofocus>
+            <input type="text" id="message" name="message" placeholder="Type a message…  (or pick a preset →)" autocomplete="off" autofocus>
             <button type="submit" id="send">Send</button>
         </form>
+    </div>
+
+    <aside class="presets">
+        <div class="presets-title">Try these — click to send</div>
+        <button type="button" class="preset" data-message="What's the weather in Tokyo?">🌤️ Weather in Tokyo</button>
+        <button type="button" class="preset" data-message="Roll a d20">🎲 Roll a d20</button>
+        <button type="button" class="preset" data-message="Fetch the report on vector databases">📄 Fetch a long report</button>
+        <button type="button" class="preset" data-message="Delete records older than 30 days">🗑️ Delete old records</button>
+    </aside>
     </div>
 
     <script>
@@ -141,6 +178,7 @@
         const form = document.getElementById('chat');
         const input = document.getElementById('message');
         const send = document.getElementById('send');
+        const presets = document.querySelectorAll('.preset');
         const csrf = document.querySelector('meta[name="csrf-token"]').content;
 
         const canMarkdown = window.marked && window.DOMPurify;
@@ -252,15 +290,15 @@
             }
         }
 
-        form.addEventListener('submit', async (e) => {
-            e.preventDefault();
-            const message = input.value.trim();
+        async function sendMessage(text) {
+            const message = (text || '').trim();
             if (!message) return;
 
             bubble(message, 'user');
             supersedeApprovals(); // sending a new message retires any open approval
             input.value = '';
             input.disabled = send.disabled = true;
+            presets.forEach((b) => (b.disabled = true));
             const thinking = bubble('thinking…', 'bot thinking');
 
             try {
@@ -272,10 +310,19 @@
                 bubble('⚠️ ' + err.message, 'bot');
             } finally {
                 input.disabled = send.disabled = false;
+                presets.forEach((b) => (b.disabled = false));
                 input.focus();
                 log.scrollTop = log.scrollHeight;
             }
+        }
+
+        // The form and the preset buttons share one send path.
+        form.addEventListener('submit', (e) => {
+            e.preventDefault();
+            sendMessage(input.value);
         });
+
+        presets.forEach((btn) => btn.addEventListener('click', () => sendMessage(btn.dataset.message)));
     </script>
 </body>
 </html>
