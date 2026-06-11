@@ -17,8 +17,11 @@ $buildAgent = fn (): DeepAgent => DeepAgent::make()
     ->instructions('You are a concise, friendly assistant in a demo for the laravel-deepagents package. '.
         'Tools: get_weather (weather), roll_dice (dice), delete_records (deleting old records), '.
         'fetch_report (a long report — its output is offloaded; use read_artifact to read details). '.
+        'For a task with several steps, first record a plan with write_todos and keep it updated as '.
+        'you work (in_progress before a step, completed after). '.
         'Use them when relevant, then answer in a sentence or two.')
     ->backend(new DatabaseBackend) // persistent: artifacts survive across the conversation
+    ->withTodos() // planning: the model keeps a todo list on the RunState, shown live in the UI
     ->tool(new GetWeather)
     ->tool(new RollDice)
     ->tool(new DeleteRecords)
@@ -62,6 +65,7 @@ $respondFromState = function (RunState $state, int $turnStart) use ($trace) {
                 fn ($call) => ['name' => $call['name'], 'arguments' => $call['arguments']],
                 $state->pendingToolCalls,
             ),
+            'todos' => $state->todos,
         ]);
     }
 
@@ -72,6 +76,7 @@ $respondFromState = function (RunState $state, int $turnStart) use ($trace) {
             'status' => 'halted',
             'reply' => '🛑 '.$state->haltReason,
             'tools' => $trace(array_slice($state->history, $turnStart)),
+            'todos' => $state->todos,
         ]);
     }
 
@@ -79,6 +84,7 @@ $respondFromState = function (RunState $state, int $turnStart) use ($trace) {
         'status' => 'done',
         'reply' => $state->finalText ?? '(no reply)',
         'tools' => $trace(array_slice($state->history, $turnStart)),
+        'todos' => $state->todos,
     ]);
 };
 

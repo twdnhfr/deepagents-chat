@@ -151,6 +151,26 @@
         .preset:hover:not(:disabled) { border-color: #2563eb; background: #131c31; }
         .preset:disabled { opacity: .5; cursor: not-allowed; }
 
+        /* The agent's live plan (write_todos → RunState->todos) */
+        .plan {
+            background: #0f172a;
+            border: 1px solid #1e293b;
+            border-radius: 10px;
+            padding: .55rem .7rem .65rem;
+        }
+        .plan-item {
+            display: flex;
+            gap: .45rem;
+            font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+            font-size: .76rem;
+            line-height: 1.5;
+            color: #94a3b8;
+        }
+        .plan-item .mark { flex: none; }
+        .plan-item.pending .mark { color: #64748b; }
+        .plan-item.in_progress { color: #fbbf24; }
+        .plan-item.completed { color: #4ade80; text-decoration: line-through; text-decoration-color: #14532d; }
+
         @media (max-width: 880px) {
             .shell { flex-direction: column; align-items: stretch; max-width: 640px; }
             .presets { flex: none; flex-direction: row; flex-wrap: wrap; }
@@ -181,6 +201,12 @@
         <button type="button" class="preset" data-message="Roll a d20">🎲 Roll a d20</button>
         <button type="button" class="preset" data-message="Fetch the report on vector databases">📄 Fetch a long report</button>
         <button type="button" class="preset" data-message="Delete records older than 30 days">🗑️ Delete old records</button>
+        <button type="button" class="preset" data-message="Make a plan first, then: check the weather in Berlin and Tokyo, roll a d6, and tell me which city is warmer.">📝 Multi-step with a plan</button>
+
+        <div class="plan" id="plan" hidden>
+            <div class="presets-title">Agent plan</div>
+            <div id="plan-items"></div>
+        </div>
     </aside>
     </div>
 
@@ -208,6 +234,28 @@
             log.appendChild(el);
             log.scrollTop = log.scrollHeight;
             return el;
+        }
+
+        // The agent's plan lives on the RunState (write_todos tool); every server
+        // response carries the current list — render it as a live panel.
+        function renderPlan(todos) {
+            const panel = document.getElementById('plan');
+            const items = document.getElementById('plan-items');
+            if (!Array.isArray(todos) || todos.length === 0) return; // keep the last plan visible
+            items.innerHTML = '';
+            const marks = { pending: '[ ]', in_progress: '[~]', completed: '[x]' };
+            todos.forEach((t) => {
+                const row = document.createElement('div');
+                row.className = 'plan-item ' + t.status;
+                const mark = document.createElement('span');
+                mark.className = 'mark';
+                mark.textContent = marks[t.status] ?? '[ ]';
+                const label = document.createElement('span');
+                label.textContent = t.content;
+                row.append(mark, label);
+                items.appendChild(row);
+            });
+            panel.hidden = false;
         }
 
         function fmtArgs(args) {
@@ -239,6 +287,7 @@
 
         // Render a server response by status: done | approval | halted | stale.
         function respond(data) {
+            renderPlan(data.todos);
             if (data.status === 'approval') {
                 renderApproval(data);
                 return;
