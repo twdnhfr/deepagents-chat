@@ -62,6 +62,15 @@
             border-radius: 8px;
             padding: .4rem .6rem;
         }
+        .compact {
+            align-self: stretch;
+            font-size: .76rem;
+            color: #c4b5fd;
+            background: #120b20;
+            border: 1px dashed #4c1d95;
+            border-radius: 8px;
+            padding: .4rem .6rem;
+        }
         .empty { margin: auto; color: #64748b; font-size: .9rem; text-align: center; }
         form { display: flex; gap: .5rem; padding: .85rem; border-top: 1px solid #1e293b; }
         input[type=text] {
@@ -216,6 +225,7 @@
         <button type="button" class="preset" data-message="Have the report-analyst compare the reports on solar energy and wind energy: which one lists more risks in its later sections?">🕵️ Delegate to a sub-agent</button>
         <button type="button" class="preset" data-message="Remember this about me: my name is Tobi and I prefer temperatures in °C.">🧠 Save to memory</button>
         <button type="button" class="preset" data-message="What do you know about me?">👤 Recall memory (try after a reload)</button>
+        <button type="button" class="preset" data-message="Fetch the reports on solar energy, wind energy and hydro power one after another, then name one commonality.">🗜️ Grow the context (then keep chatting)</button>
 
         <div class="plan" id="plan" hidden>
             <div class="presets-title">Agent plan</div>
@@ -302,6 +312,12 @@
         // Render a server response by status: done | approval | halted | stale.
         function respond(data) {
             renderPlan(data.todos);
+            if (data.compacted) {
+                const line = document.createElement('div');
+                line.className = 'compact';
+                line.textContent = '🗜️ Older history grew past the token budget and was compacted into a summary (summarize()).';
+                log.appendChild(line);
+            }
             if (data.status === 'approval') {
                 renderApproval(data);
                 return;

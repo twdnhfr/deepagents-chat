@@ -14,15 +14,31 @@ in a real request/response flow.
   and continued on each message (`DeepAgent::continue()`).
 - **Tools** — four demo tools the model can call: `get_weather`, `roll_dice`,
   `delete_records` and `fetch_report` (see `app/Tools`).
-- **Human-in-the-loop approval** — the destructive `delete_records` tool is gated
-  with `requireApproval()`; the run suspends and the UI asks you to approve or
-  reject before it executes. A rejection is a real per-call decision
-  (`RunState::reject()`, since v0.4.0): your optional reason goes back to the
-  model as the tool's result, so it reacts in-conversation instead of the turn
-  being dropped.
+- **Planning** — `withTodos()` gives the model the `write_todos` tool; the
+  sidebar renders its plan live from `RunState->todos` as steps move through
+  pending → in progress → completed.
+- **Sub-agents** — a `report-analyst` registered with `subAgent()`: the parent
+  delegates report analysis via the `task` tool, the sub-agent works in its own
+  isolated context window (inheriting the parent's backend) and only its final
+  answer returns to the conversation.
+- **Persistent memory** — `memory('memory/profile.md')` loads a profile from the
+  backend into the system prompt at the start of every conversation; the agent
+  updates it via `write_artifact`. Reload the page (fresh conversation) and ask
+  "What do you know about me?" — the history is gone, the memory isn't.
+- **Human-in-the-loop with all three decisions** — the destructive
+  `delete_records` tool is gated with `requireApproval()`; the run suspends and
+  the UI shows the pending call. *Approve* runs it as requested, *edit* the
+  arguments inline before approving (`RunState::edit()` — the call runs with
+  your corrected input), or *reject* with an optional reason
+  (`RunState::reject()`) that goes back to the model as the tool's result, so
+  it reacts in-conversation instead of the turn being dropped.
 - **Persistent artifacts & offloading** — large tool outputs are clipped with
-  `offloadLargeToolResults()` and stored as artifacts via the `DatabaseBackend`,
-  so the model can read the full text back on demand with `read_artifact`.
+  `offloadLargeToolResults()` and stored as run-scoped artifacts via the
+  `DatabaseBackend`, so the model can read the full text back on demand with
+  `read_artifact`.
+- **Context compaction** — `summarize()` (with a deliberately low budget here)
+  compacts older history into a summary once it grows too large; the UI marks
+  the moment with a 🗜️ line, and the conversation keeps its context.
 - **Tool trace** — each reply shows which tools ran with their arguments and
   results.
 

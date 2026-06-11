@@ -61,35 +61,58 @@ $buildAgent = fn (): DeepAgent => DeepAgent::make()
     ->tool(new DeleteRecords)
     ->tool(new FetchReport)
     ->offloadLargeToolResults(800) // clip big tool outputs; auto-adds read_artifact
+    ->summarize(1200, 6) // compact older history past ~1200 est. tokens, keep the last 6 entries
+                         // (deliberately low so the demo reaches it within a few report turns)
     ->withArtifacts()
     ->validateToolArgs()      // check tool arguments against each tool's schema; bad calls get a correction, not a crash
     ->guardAgainstLoops()     // stop a no-progress run (same tool call repeated) instead of churning to maxTurns
     ->requireApproval(['delete_records']); // gate only the destructive tool
 
-/** Extract executed tool calls from a slice of run history, for the UI trace. */
-$trace = fn (array $history): array => collect($history)
-    ->where('role', 'tool_result')
-    ->flatMap(fn ($entry) => $entry['toolResults'])
-    ->map(fn ($result) => [
-        'name' => $result['name'],
-        'arguments' => $result['arguments'],
-        'result' => $result['result'],
-    ])
-    ->values()
-    ->all();
+/**
+ * Executed tool calls since the current user message, for the UI trace. Sliced
+ * from the last user-role entry (not a remembered index) so it stays correct
+ * when summarize() compacts the history mid-run and indices shift.
+ */
+$trace = function (RunState $state): array {
+    $lastUser = 0;
+
+    foreach ($state->history as $i => $entry) {
+        if (($entry['role'] ?? null) === 'user') {
+            $lastUser = $i;
+        }
+    }
+
+    return collect(array_slice($state->history, $lastUser))
+        ->where('role', 'tool_result')
+        ->flatMap(fn ($entry) => $entry['toolResults'])
+        ->map(fn ($result) => [
+            'name' => $result['name'],
+            'arguments' => $result['arguments'],
+            'result' => $result['result'],
+        ])
+        ->values()
+        ->all();
+};
 
 /**
  * Turn a RunState into the JSON response + session bookkeeping all routes share:
  * suspended → an approval card (state parked under a one-time token),
  * halted → the guard's reason, done → the reply with its tool trace.
+ *
+ * `$prevCount` is the history length before this request's work: history only
+ * ever grows during a run, so a shrink + a leading summary entry means the
+ * SummarizeHistory hook compacted it this turn — surfaced as `compacted`.
  */
-$respondFromState = function (RunState $state, int $turnStart) use ($trace) {
+$respondFromState = function (RunState $state, int $prevCount) use ($trace) {
+    $compacted = count($state->history) <= $prevCount
+        && str_starts_with((string) ($state->history[0]['content'] ?? ''), 'Summary of the earlier conversation:');
+
     if ($state->isSuspended()) {
         $token = (string) Str::uuid();
         session(['deepagents_pending' => [
             'token' => $token,
             'state' => $state->toJson(),
-            'from' => $turnStart,
+            'count' => count($state->history),
         ]]);
 
         return response()->json([
@@ -100,6 +123,7 @@ $respondFromState = function (RunState $state, int $turnStart) use ($trace) {
                 $state->pendingToolCalls,
             ),
             'todos' => $state->todos,
+            'compacted' => $compacted,
         ]);
     }
 
@@ -109,16 +133,18 @@ $respondFromState = function (RunState $state, int $turnStart) use ($trace) {
         return response()->json([
             'status' => 'halted',
             'reply' => '🛑 '.$state->haltReason,
-            'tools' => $trace(array_slice($state->history, $turnStart)),
+            'tools' => $trace($state),
             'todos' => $state->todos,
+            'compacted' => $compacted,
         ]);
     }
 
     return response()->json([
         'status' => 'done',
         'reply' => $state->finalText ?? '(no reply)',
-        'tools' => $trace(array_slice($state->history, $turnStart)),
+        'tools' => $trace($state),
         'todos' => $state->todos,
+        'compacted' => $compacted,
     ]);
 };
 
@@ -130,6 +156,8 @@ Route::get('/', function () {
 });
 
 Route::post('/chat', function (Request $request) use ($buildAgent, $respondFromState) {
+    set_time_limit(300); // a deep-agent turn chains many model calls; PHP's default 30s is too tight
+
     $message = trim((string) $request->input('message', ''));
 
     if ($message === '') {
@@ -145,17 +173,19 @@ Route::post('/chat', function (Request $request) use ($buildAgent, $respondFromS
 
     if ($stored) {
         $previous = RunState::fromJson($stored);
-        $turnStart = count($previous->history);
+        $prevCount = count($previous->history);
         $state = $agent->continue($previous, $message);
     } else {
-        $turnStart = 0;
+        $prevCount = 0;
         $state = $agent->run($message);
     }
 
-    return $respondFromState($state, $turnStart);
+    return $respondFromState($state, $prevCount);
 });
 
 Route::post('/chat/approve', function (Request $request) use ($buildAgent, $respondFromState) {
+    set_time_limit(300); // resume() can also chain several model calls
+
     $token = (string) $request->input('token', '');
     $approved = (bool) $request->input('approve', false);
 
@@ -203,5 +233,5 @@ Route::post('/chat/approve', function (Request $request) use ($buildAgent, $resp
         }
     }
 
-    return $respondFromState($buildAgent()->resume($state), $pending['from']);
+    return $respondFromState($buildAgent()->resume($state), $pending['count']);
 });
