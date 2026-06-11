@@ -105,6 +105,17 @@
         .approval button { padding: .4rem .8rem; font-size: .82rem; border-radius: 8px; }
         .approval .approve { background: #16a34a; }
         .approval .reject { background: #334155; }
+        .approval .reason {
+            width: 100%;
+            background: #0b1120;
+            border: 1px solid #334155;
+            color: #e2e8f0;
+            border-radius: 8px;
+            padding: .4rem .6rem;
+            font-size: .8rem;
+            margin-bottom: .55rem;
+        }
+        .approval .reason::placeholder { color: #64748b; }
         .msg.markdown { white-space: normal; }
         .msg.markdown > :first-child { margin-top: 0; }
         .msg.markdown > :last-child { margin-bottom: 0; }
@@ -208,7 +219,7 @@
             log.querySelectorAll('.approval').forEach((card) => {
                 if (card.dataset.resolved) return;
                 card.dataset.resolved = '1';
-                card.querySelectorAll('button').forEach((b) => (b.disabled = true));
+                card.querySelectorAll('button, input').forEach((el) => (el.disabled = true));
                 card.style.opacity = '.5';
                 const note = document.createElement('div');
                 note.style.cssText = 'margin-top:.45rem;color:#94a3b8;font-size:.72rem;';
@@ -226,13 +237,13 @@
             return res.json();
         }
 
-        // Render a server response by status: done | approval | rejected.
+        // Render a server response by status: done | approval | halted | stale.
         function respond(data) {
             if (data.status === 'approval') {
                 renderApproval(data);
                 return;
             }
-            if (data.status === 'rejected' || data.status === 'stale') {
+            if (data.status === 'stale') {
                 bubble(data.reply, 'bot', true);
                 return;
             }
@@ -259,6 +270,13 @@
             calls.className = 'calls';
             calls.textContent = data.pending.map((c) => `${c.name}(${fmtArgs(c.arguments)})`).join('\n');
 
+            // The reason is handed to the model as the rejected call's result
+            // (RunState::reject()), so it can adjust its plan in-conversation.
+            const reason = document.createElement('input');
+            reason.className = 'reason';
+            reason.type = 'text';
+            reason.placeholder = 'Optional: tell the agent why, if you reject…';
+
             const actions = document.createElement('div');
             actions.className = 'actions';
             const approve = document.createElement('button');
@@ -271,17 +289,18 @@
             reject.onclick = () => decide(card, data.token, false);
             actions.append(approve, reject);
 
-            card.append(head, calls, actions);
+            card.append(head, calls, reason, actions);
             log.appendChild(card);
             log.scrollTop = log.scrollHeight;
         }
 
         async function decide(card, token, approve) {
             card.dataset.resolved = '1';
-            card.querySelectorAll('button').forEach((b) => (b.disabled = true));
-            const thinking = bubble(approve ? 'running…' : 'cancelling…', 'bot thinking');
+            const reason = card.querySelector('.reason')?.value ?? '';
+            card.querySelectorAll('button, input').forEach((el) => (el.disabled = true));
+            const thinking = bubble(approve ? 'running…' : 'declining…', 'bot thinking');
             try {
-                const data = await post('/chat/approve', { token, approve });
+                const data = await post('/chat/approve', { token, approve, reason });
                 thinking.remove();
                 respond(data);
             } catch (err) {

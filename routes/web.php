@@ -41,6 +41,47 @@ $trace = fn (array $history): array => collect($history)
     ->values()
     ->all();
 
+/**
+ * Turn a RunState into the JSON response + session bookkeeping all routes share:
+ * suspended → an approval card (state parked under a one-time token),
+ * halted → the guard's reason, done → the reply with its tool trace.
+ */
+$respondFromState = function (RunState $state, int $turnStart) use ($trace) {
+    if ($state->isSuspended()) {
+        $token = (string) Str::uuid();
+        session(['deepagents_pending' => [
+            'token' => $token,
+            'state' => $state->toJson(),
+            'from' => $turnStart,
+        ]]);
+
+        return response()->json([
+            'status' => 'approval',
+            'token' => $token,
+            'pending' => array_map(
+                fn ($call) => ['name' => $call['name'], 'arguments' => $call['arguments']],
+                $state->pendingToolCalls,
+            ),
+        ]);
+    }
+
+    session(['deepagents_chat' => $state->toJson()]);
+
+    if ($state->isHalted()) {
+        return response()->json([
+            'status' => 'halted',
+            'reply' => '🛑 '.$state->haltReason,
+            'tools' => $trace(array_slice($state->history, $turnStart)),
+        ]);
+    }
+
+    return response()->json([
+        'status' => 'done',
+        'reply' => $state->finalText ?? '(no reply)',
+        'tools' => $trace(array_slice($state->history, $turnStart)),
+    ]);
+};
+
 Route::get('/', function () {
     // A fresh page load starts a fresh conversation.
     session()->forget(['deepagents_chat', 'deepagents_pending']);
@@ -48,7 +89,7 @@ Route::get('/', function () {
     return view('welcome');
 });
 
-Route::post('/chat', function (Request $request) use ($buildAgent, $trace) {
+Route::post('/chat', function (Request $request) use ($buildAgent, $respondFromState) {
     $message = trim((string) $request->input('message', ''));
 
     if ($message === '') {
@@ -71,48 +112,10 @@ Route::post('/chat', function (Request $request) use ($buildAgent, $trace) {
         $state = $agent->run($message);
     }
 
-    // Paused before a gated tool: the suspended run is the conversation's single
-    // pending approval, stored server-side in the session under a one-time token.
-    if ($state->isSuspended()) {
-        $token = (string) Str::uuid();
-        session(['deepagents_pending' => [
-            'token' => $token,
-            'state' => $state->toJson(),
-            'from' => $turnStart,
-        ]]);
-
-        return response()->json([
-            'status' => 'approval',
-            'token' => $token,
-            'pending' => array_map(
-                fn ($call) => ['name' => $call['name'], 'arguments' => $call['arguments']],
-                $state->pendingToolCalls,
-            ),
-        ]);
-    }
-
-    // No-progress run stopped by guardAgainstLoops(): surface the reason instead
-    // of an empty reply. The halted state is serializable; continue() can resume it.
-    if ($state->isHalted()) {
-        session(['deepagents_chat' => $state->toJson()]);
-
-        return response()->json([
-            'status' => 'halted',
-            'reply' => '🛑 '.$state->haltReason,
-            'tools' => $trace(array_slice($state->history, $turnStart)),
-        ]);
-    }
-
-    session(['deepagents_chat' => $state->toJson()]);
-
-    return response()->json([
-        'status' => 'done',
-        'reply' => $state->finalText ?? '(no reply)',
-        'tools' => $trace(array_slice($state->history, $turnStart)),
-    ]);
+    return $respondFromState($state, $turnStart);
 });
 
-Route::post('/chat/approve', function (Request $request) use ($buildAgent, $trace) {
+Route::post('/chat/approve', function (Request $request) use ($buildAgent, $respondFromState) {
     $token = (string) $request->input('token', '');
     $approved = (bool) $request->input('approve', false);
 
@@ -129,24 +132,20 @@ Route::post('/chat/approve', function (Request $request) use ($buildAgent, $trac
 
     session()->forget('deepagents_pending');
 
+    $state = RunState::fromJson($pending['state']);
+
+    // A rejection is a per-call decision, not a dead end: reject() records the
+    // human's reason on the pending call, and resume() hands it to the model as
+    // the tool's result — so it reacts in-conversation instead of the turn being
+    // silently dropped. Approval is the default, so approved calls need nothing.
     if (! $approved) {
-        return response()->json(['status' => 'rejected', 'reply' => "Okay — I won't run that."]);
+        $reason = trim((string) $request->input('reason', ''))
+            ?: 'The user declined this action in the chat.';
+
+        foreach ($state->pendingToolCalls as $call) {
+            $state->reject($call['id'], $reason);
+        }
     }
 
-    $state = $buildAgent()->resume(RunState::fromJson($pending['state']));
-    session(['deepagents_chat' => $state->toJson()]);
-
-    if ($state->isHalted()) {
-        return response()->json([
-            'status' => 'halted',
-            'reply' => '🛑 '.$state->haltReason,
-            'tools' => $trace(array_slice($state->history, $pending['from'])),
-        ]);
-    }
-
-    return response()->json([
-        'status' => 'done',
-        'reply' => $state->finalText ?? '(no reply)',
-        'tools' => $trace(array_slice($state->history, $pending['from'])),
-    ]);
+    return $respondFromState($buildAgent()->resume($state), $pending['from']);
 });

@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "a7ab3225ace131312f1f2b31baff654b",
+    "content-hash": "0dceea96d2123f756508dd088b9c327a",
     "packages": [
         {
             "name": "aws/aws-crt-php",
@@ -6256,16 +6256,16 @@
         },
         {
             "name": "twdnhfr/laravel-deepagents",
-            "version": "v0.2.0",
+            "version": "v0.4.0",
             "source": {
                 "type": "git",
                 "url": "https://github.com/twdnhfr/laravel-deepagents.git",
-                "reference": "a64cc594daef5335e3a9810298f57882ace67dd2"
+                "reference": "b7fff8eff78893422ae47301d9fb1d67a102a676"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/twdnhfr/laravel-deepagents/zipball/a64cc594daef5335e3a9810298f57882ace67dd2",
-                "reference": "a64cc594daef5335e3a9810298f57882ace67dd2",
+                "url": "https://api.github.com/repos/twdnhfr/laravel-deepagents/zipball/b7fff8eff78893422ae47301d9fb1d67a102a676",
+                "reference": "b7fff8eff78893422ae47301d9fb1d67a102a676",
                 "shasum": ""
             },
             "require": {
@@ -6284,27 +6284,19 @@
                 "pestphp/pest-plugin-laravel": "^4.0",
                 "phpstan/extension-installer": "^1.4",
                 "phpstan/phpstan-deprecation-rules": "^2.0",
-                "phpstan/phpstan-phpunit": "^2.0",
-                "spatie/laravel-ray": "^1.35"
+                "phpstan/phpstan-phpunit": "^2.0"
             },
             "type": "library",
             "extra": {
                 "laravel": {
-                    "aliases": {
-                        "LaravelDeepagents": "Twdnhfr\\LaravelDeepagents\\Facades\\LaravelDeepagents"
-                    },
                     "providers": [
                         "Twdnhfr\\LaravelDeepagents\\LaravelDeepagentsServiceProvider"
                     ]
-                },
-                "branch-alias": {
-                    "dev-main": "0.1.x-dev"
                 }
             },
             "autoload": {
                 "psr-4": {
-                    "Twdnhfr\\LaravelDeepagents\\": "src/",
-                    "Twdnhfr\\LaravelDeepagents\\Database\\Factories\\": "database/factories/"
+                    "Twdnhfr\\LaravelDeepagents\\": "src/"
                 }
             },
             "notification-url": "https://packagist.org/downloads/",
@@ -6330,7 +6322,7 @@
             ],
             "support": {
                 "issues": "https://github.com/twdnhfr/laravel-deepagents/issues",
-                "source": "https://github.com/twdnhfr/laravel-deepagents/tree/v0.2.0"
+                "source": "https://github.com/twdnhfr/laravel-deepagents/tree/v0.4.0"
             },
             "funding": [
                 {
@@ -6338,7 +6330,7 @@
                     "type": "github"
                 }
             ],
-            "time": "2026-05-30T17:00:41+00:00"
+            "time": "2026-06-11T08:30:52+00:00"
         },
         {
             "name": "vlucas/phpdotenv",

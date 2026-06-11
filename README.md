@@ -16,7 +16,10 @@ in a real request/response flow.
   `delete_records` and `fetch_report` (see `app/Tools`).
 - **Human-in-the-loop approval** — the destructive `delete_records` tool is gated
   with `requireApproval()`; the run suspends and the UI asks you to approve or
-  reject before it executes.
+  reject before it executes. A rejection is a real per-call decision
+  (`RunState::reject()`, since v0.4.0): your optional reason goes back to the
+  model as the tool's result, so it reacts in-conversation instead of the turn
+  being dropped.
 - **Persistent artifacts & offloading** — large tool outputs are clipped with
   `offloadLargeToolResults()` and stored as artifacts via the `DatabaseBackend`,
   so the model can read the full text back on demand with `read_artifact`.
