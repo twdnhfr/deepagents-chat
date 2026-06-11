@@ -11,6 +11,24 @@ use Twdnhfr\LaravelDeepagents\Backends\DatabaseBackend;
 use Twdnhfr\LaravelDeepagents\DeepAgent;
 use Twdnhfr\LaravelDeepagents\Runtime\RunState;
 
+/**
+ * A sub-agent for the `task` tool: runs in its own isolated context window and
+ * returns only its final text, keeping the report's tokens out of the main
+ * conversation. It has no backend of its own, so it inherits the parent's
+ * DatabaseBackend at delegation time (shared artifact store). Sub-agents must
+ * run autonomously — gate the *delegation* on the parent, not the sub-agent.
+ */
+$buildAnalyst = fn (): DeepAgent => DeepAgent::make()
+    ->provider('openrouter')
+    ->model(env('OPENROUTER_MODEL', 'openai/gpt-5.4-nano'))
+    ->instructions('You are a report analyst. Fetch the report on the requested topic with fetch_report, '.
+        'read offloaded details via read_artifact where needed, and answer the question in 2-3 '.
+        'precise sentences. Your reply goes back to another agent — no greetings, just the findings.')
+    ->tool(new FetchReport)
+    ->offloadLargeToolResults(800)
+    ->validateToolArgs()
+    ->maxTurns(8);
+
 $buildAgent = fn (): DeepAgent => DeepAgent::make()
     ->provider('openrouter')
     ->model(env('OPENROUTER_MODEL', 'openai/gpt-5.4-nano'))
@@ -19,9 +37,17 @@ $buildAgent = fn (): DeepAgent => DeepAgent::make()
         'fetch_report (a long report — its output is offloaded; use read_artifact to read details). '.
         'For a task with several steps, first record a plan with write_todos and keep it updated as '.
         'you work (in_progress before a step, completed after). '.
+        'For analyzing or comparing reports, delegate to the report-analyst sub-agent via the task tool '.
+        'instead of reading the reports yourself. '.
         'Use them when relevant, then answer in a sentence or two.')
     ->backend(new DatabaseBackend) // persistent: artifacts survive across the conversation
     ->withTodos() // planning: the model keeps a todo list on the RunState, shown live in the UI
+    ->subAgent(
+        'report-analyst',
+        'Fetches the report on a topic and answers a focused question about it. Pass a complete, '.
+        'standalone task (topic + question + expected output).',
+        $buildAnalyst(),
+    )
     ->tool(new GetWeather)
     ->tool(new RollDice)
     ->tool(new DeleteRecords)

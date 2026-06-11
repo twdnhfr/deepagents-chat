@@ -202,6 +202,7 @@
         <button type="button" class="preset" data-message="Fetch the report on vector databases">📄 Fetch a long report</button>
         <button type="button" class="preset" data-message="Delete records older than 30 days">🗑️ Delete old records</button>
         <button type="button" class="preset" data-message="Make a plan first, then: check the weather in Berlin and Tokyo, roll a d6, and tell me which city is warmer.">📝 Multi-step with a plan</button>
+        <button type="button" class="preset" data-message="Have the report-analyst compare the reports on solar energy and wind energy: which one lists more risks in its later sections?">🕵️ Delegate to a sub-agent</button>
 
         <div class="plan" id="plan" hidden>
             <div class="presets-title">Agent plan</div>
