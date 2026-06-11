@@ -98,9 +98,20 @@
             font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
             font-size: .8rem;
             color: #fde68a;
-            white-space: pre-wrap;
             margin-bottom: .65rem;
         }
+        .approval .call { margin: .15rem 0; }
+        .approval input.arg {
+            font-family: inherit;
+            font-size: inherit;
+            background: #0b1120;
+            border: 1px solid #78550f;
+            color: #fde68a;
+            border-radius: 6px;
+            padding: .12rem .35rem;
+        }
+        .approval input.arg:focus { border-color: #fbbf24; outline: none; }
+        .approval .hint { color: #b4884a; font-size: .72rem; margin-bottom: .55rem; }
         .approval .actions { display: flex; gap: .5rem; }
         .approval button { padding: .4rem .8rem; font-size: .82rem; border-radius: 8px; }
         .approval .approve { background: #16a34a; }
@@ -318,9 +329,34 @@
             head.className = 'head';
             head.textContent = '⚠️ The agent needs your approval to run:';
 
+            // Each argument is an editable field: changed values are applied via
+            // RunState::edit() before the call runs (approve/edit/reject — the
+            // three per-call decisions).
             const calls = document.createElement('div');
             calls.className = 'calls';
-            calls.textContent = data.pending.map((c) => `${c.name}(${fmtArgs(c.arguments)})`).join('\n');
+            data.pending.forEach((c) => {
+                const row = document.createElement('div');
+                row.className = 'call';
+                row.dataset.id = c.id;
+                row.append(`${c.name}(`);
+                Object.entries(c.arguments || {}).forEach(([k, v], i) => {
+                    const inp = document.createElement('input');
+                    inp.className = 'arg';
+                    inp.dataset.key = k;
+                    inp.dataset.original = JSON.stringify(v);
+                    inp.dataset.string = typeof v === 'string' ? '1' : '';
+                    inp.value = typeof v === 'string' ? v : JSON.stringify(v);
+                    inp.size = Math.max(3, inp.value.length + 1);
+                    inp.addEventListener('input', () => (inp.size = Math.max(3, inp.value.length + 1)));
+                    row.append(`${i ? ', ' : ''}${k}: `, inp);
+                });
+                row.append(')');
+                calls.appendChild(row);
+            });
+
+            const hint = document.createElement('div');
+            hint.className = 'hint';
+            hint.textContent = '✏️ Arguments are editable — change a value before approving.';
 
             // The reason is handed to the model as the rejected call's result
             // (RunState::reject()), so it can adjust its plan in-conversation.
@@ -341,7 +377,7 @@
             reject.onclick = () => decide(card, data.token, false);
             actions.append(approve, reject);
 
-            card.append(head, calls, reason, actions);
+            card.append(head, calls, hint, reason, actions);
             log.appendChild(card);
             log.scrollTop = log.scrollHeight;
         }
@@ -349,10 +385,30 @@
         async function decide(card, token, approve) {
             card.dataset.resolved = '1';
             const reason = card.querySelector('.reason')?.value ?? '';
+
+            // Collect edited arguments (only calls whose values actually changed).
+            // Non-string originals are parsed back from JSON, so "365" stays a number.
+            const edits = [];
+            if (approve) {
+                card.querySelectorAll('.call').forEach((row) => {
+                    const args = {};
+                    let changed = false;
+                    row.querySelectorAll('input.arg').forEach((inp) => {
+                        let value = inp.value;
+                        if (!inp.dataset.string) {
+                            try { value = JSON.parse(inp.value); } catch { /* keep as string */ }
+                        }
+                        args[inp.dataset.key] = value;
+                        if (JSON.stringify(value) !== inp.dataset.original) changed = true;
+                    });
+                    if (changed) edits.push({ id: row.dataset.id, arguments: args });
+                });
+            }
+
             card.querySelectorAll('button, input').forEach((el) => (el.disabled = true));
             const thinking = bubble(approve ? 'running…' : 'declining…', 'bot thinking');
             try {
-                const data = await post('/chat/approve', { token, approve, reason });
+                const data = await post('/chat/approve', { token, approve, reason, edits });
                 thinking.remove();
                 respond(data);
             } catch (err) {

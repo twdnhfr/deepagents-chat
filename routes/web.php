@@ -96,7 +96,7 @@ $respondFromState = function (RunState $state, int $turnStart) use ($trace) {
             'status' => 'approval',
             'token' => $token,
             'pending' => array_map(
-                fn ($call) => ['name' => $call['name'], 'arguments' => $call['arguments']],
+                fn ($call) => ['id' => $call['id'], 'name' => $call['name'], 'arguments' => $call['arguments']],
                 $state->pendingToolCalls,
             ),
             'todos' => $state->todos,
@@ -174,10 +174,26 @@ Route::post('/chat/approve', function (Request $request) use ($buildAgent, $resp
 
     $state = RunState::fromJson($pending['state']);
 
+    // Approval is the default, so untouched calls need nothing. Edited calls go
+    // through RunState::edit(): the human-corrected arguments replace the
+    // model's before the call runs (the third per-call decision next to
+    // approve/reject).
+    if ($approved) {
+        $validIds = array_column($state->pendingToolCalls, 'id');
+
+        foreach ((array) $request->input('edits', []) as $edit) {
+            if (is_array($edit)
+                && in_array($edit['id'] ?? null, $validIds, true)
+                && is_array($edit['arguments'] ?? null)) {
+                $state->edit($edit['id'], $edit['arguments']);
+            }
+        }
+    }
+
     // A rejection is a per-call decision, not a dead end: reject() records the
     // human's reason on the pending call, and resume() hands it to the model as
     // the tool's result — so it reacts in-conversation instead of the turn being
-    // silently dropped. Approval is the default, so approved calls need nothing.
+    // silently dropped.
     if (! $approved) {
         $reason = trim((string) $request->input('reason', ''))
             ?: 'The user declined this action in the chat.';
