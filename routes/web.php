@@ -39,8 +39,16 @@ $buildAgent = fn (): DeepAgent => DeepAgent::make()
         'you work (in_progress before a step, completed after). '.
         'For analyzing or comparing reports, delegate to the report-analyst sub-agent via the task tool '.
         'instead of reading the reports yourself. '.
+        'You have persistent memory: whenever the user asks you to remember something or shares a '.
+        'lasting fact/preference about themselves, you MUST call write_artifact with path '.
+        '"memory/profile.md" and the COMPLETE updated profile as content (the file is replaced; '.
+        'merge in anything already known from the memory section of this prompt). That file is '.
+        'loaded into your context when a new conversation starts — without the write, the fact is '.
+        'lost on reload. '.
         'Use them when relevant, then answer in a sentence or two.')
     ->backend(new DatabaseBackend) // persistent: artifacts survive across the conversation
+    ->memory('memory/profile.md') // loaded into the system prompt at run() — survives page reloads,
+                                  // unlike the conversation history, which a reload resets
     ->withTodos() // planning: the model keeps a todo list on the RunState, shown live in the UI
     ->subAgent(
         'report-analyst',
